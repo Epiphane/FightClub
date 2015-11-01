@@ -13,6 +13,7 @@ use \Fight\Model\FightItemModel;
 use \Fight\Model\FightActionModel;
 use \Fight\Model\FightPrefsModel;
 use \Fight\Controller\FightActionController;
+use \Fight\Controller\FightUserController;
 use \Fight\Controller\FightReactionController;
 use \Fight\Controller\FightPrefsController;
 use \Fight\Attachment\FightMessage;
@@ -21,77 +22,158 @@ use \Fight\Attachment\FightWarningMessage;
 use \Fight\Attachment\FightGoodMessage;
 use \Fight\Attachment\FightDangerMessage;
 
-define("SERVER_ERR", "Sorry! Server Error! Code: ");
-
 class FightController
 {
-   public static function fight()
+   public static $RESERVED = ["help", "fight", "use", "equip", "item"];
 
-   /**
-    * Find a user by user ID and team ID, and create the user if they don't exist.
-    */
-   public static function findUser($team_id, $user_id) {
-      $request = new \Data\Request();
-      $request->Filter[] = new \Data\Filter("team_id", $team_id);
-      $request->Filter[] = new \Data\Filter("name", $user_id);
-
-      $user = FightUserModel::findOne($request);
-
-      if (!$user) {
-         // Create user
-         $user = FightUserModel::build([
-            "team_id" => $team_id,
-            "name" => $user_id,
-            "level" => 1,
-            "experience" => 0
-         ]);
-
-         if (!$user->save()) return null;
-
-         // Give them a basic attack
-         $attack = FightItemModel::build([
-            "user_id" => $user->user_id,
-            "name" => "attack",
-            "stats" => [ "physical" => 5 ],
-            "type" => "move"
-         ]);
-
-         $attack->save();
-
-         // Give them a basic armor too
-         $armor = FightItemModel::build([
-            "user_id" => $user->user_id,
-            "name" => "clothes",
-            "stats" => [
-               "alignment" => "none",
-               "physical" => 2,
-               "elemental" => 0,
-               "defense" => 0
-            ],
-            "type" => "item"
-         ]);
-
-         $armor->save();
-
-         $user->update([ "armor" => $armor->item_id ]);
+   public static function fight_($argc, $argv, $user, $fight, $params) {
+      if ($fight) {
+         return new FightMessage("danger", "You're already in a fight! Type `status` to see how you're doing");
       }
 
-      return $user;
+      if ($argv !== 2 || in_array($argv[1], self::$RESERVED)) {
+         return new FightInfoMessage([
+            "Usage: `fight @XXX | fight monster`",
+            "Type `fight help` for more commands"
+         ]);
+      }
+
+      if ($argv[1] === "monster") {
+         $opponent = FightAIController::getRandomMonster($user);
+
+         $opponent->save();
+      }
+      else {
+         $opponent = FightUserController::findUserByTag($user->team_id, $argv1[1]);
+         if (!$opponent) {
+            return new FightDangerMessage("danger", "Sorry, `" . $argv1[1] . "` is not recognized as a name");
+         }
+      }
+
+      $otherExisting = FightModel::findOneWhere([
+         "user_id" => $opponent->user_id,
+         "channel_id" => $params["channel_id"],
+         "status" => "progress"
+      ]);
+
+      if ($otherExisting) {
+         return new FightMessage("danger", "Sorry, " . $opponent->tag() . " is already in a fight. Maybe take this somewhere else?");
+      }
+
+      $INITIAL_HEALTH = 100;
+
+      $fightParams = [
+         "user_id" => $user->user_id,
+         "channel_id" => $params["channel_id"],
+         "status" => "progress",
+         "health" => $INITIAL_HEALTH
+      ];
+
+      // Build fight 1
+      $fight1 = FightModel::build($fightParams);
+      if (!$fight1->save()) throw new \Exception("Server error. Code: 1");
+   
+      // Build opponent's fight
+      $fightParams["fight_id"] = $fight1->fight_id;
+      $fight2 = FightModel::build($fightParams);
+      if (!$fight2->save()) throw new \Exception("Server error. Code: 2");
+
+      // Register the action
+      FightActionController::registerAction($user, $fight1->fight_id, $user->tag() . " challenges " . $opponent->tag() . " to a fight!");
+
+      // If it's a monster (or slackbot) they get to go first
+      if ($opponent->AI) {
+         $computerMove = FightAIController::computerMove($user, $fight1, $opponent, $fight2);
+
+         if (!is_array($computerMove)) {
+            $computerMove = [$computerMove];
+         }
+
+         foreach ($computerMove as $action) {
+            FightActionController::registerAction($opponent, $fight2->fight_id, $action->toString());
+         }
+
+         array_unshift($computerMove, new FightMessage("warning", "A wild " . $opponent->tag() . " appeared!"));
+
+         return $computerMove;
+      }
+
+      return new FightMessage("good", "Bright it on, " . $opponent->tag() . "!!");
    }
 
-   public static function findUserByTag($team_id, $user_tag) {
-      if (strpos($user_tag, "<@") === false) {
-         return false;
-      }
+   public static $COMMANDS = [
+      "`fight @XXX` : Pick a fight with @XXX",
+      "`forefeit` : Quit your current fight (counts as a loss)",
+      "`status` : Get your health, your opponent's health, and other info about the fight",
+      "`equip XXX` : Equip an item in your inventory",
+      "`use XXX` : Use a move on an opponent"
+   ];
+   public static function help_() {
+      return new FightInfoMessage(self::$COMMANDS);
+   }
 
-      $user_id = substr($user_tag, strlen("<@"), strlen($user_tag) - 3);
+   public static function settings_($argc, argv, $user, $fight, $params) {
+      return new FightMessage("warning", "Sorry, settings is not implemented yet.");
+   }
 
-      return self::findUser($team_id, $user_id);
+   public static function reaction_($argc, argv, $user, $fight, $params) {
+      return new FightMessage("warning", "Sorry, reaction is not implemented yet.");
+   }
+
+   public static function item_($argc, argv, $user, $fight, $params) {
+      return new FightMessage("warning", "Sorry, item is not implemented yet.");
+   }
+
+   public static function craft_($argc, argv, $user, $fight, $params) {
+      return new FightMessage("warning", "Sorry, craft is not implemented yet.");
+   }
+
+   public static function status_($argc, argv, $user, $fight, $params) {
+      return new FightMessage("warning", "Sorry, status is not implemented yet.");
+   }
+
+   public static function equip_($argc, argv, $user, $fight, $params) {
+      return new FightMessage("warning", "Sorry, equip is not implemented yet.");
+   }
+
+   public static function ping_($argc, argv, $user, $fight, $params) {
+      return new FightMessage("warning", "Sorry, ping is not implemented yet.");
+   }
+
+   public static function use_($argc, argv, $user, $fight, $params) {
+      return new FightMessage("warning", "Sorry, use is not implemented yet.");
+   }
+
+         // if ($command === "fight ping") {
+         //    return new FightDangerMessage("Come on, " . $opponent->tag() . "! Make a move!");
+         // }
+
+         // return self::runFight($existing, $user, $otherFight, $opponent, $trigger, $cmdParts);
+
+   public static function findFight($user, $channel_id) {
+      return FightModel::findOneWhere([
+         "user_id" => $user->user_id,
+         "channel_id" => $channel_id,
+         "status" => "progress"
+      ]);
+   }
+
+   public static function getOpponent($fight) {
+      $request = new \Data\Request();
+      $request->Filter[] = new \Data\Filter("fight_id", $fight->fight_id);
+      $request->Filter[] = new \Data\Filter("channel_id", $fight->channel_id);
+      $request->Filter[] = new \Data\Filter("user_id", $fight->user_id, "!=");
+
+      $otherFight = FightModel::findOne($request);
+      return [
+         "fight" => $otherFight,
+         "user" => FightUserModel::findOneWhere([ "user_id" => $otherFight->user_id ])
+      ];
    }
 
    public static function _fight($user, $channel_id, $trigger, $command) {
       if ($command === "fight help") {
-         return self::displayHelp();
+         return self::help_();
       }
 
       $settings = FightPrefsController::findById($channel_id);
@@ -253,17 +335,6 @@ class FightController
 
          return self::runFight($existing, $user, $otherFight, $opponent, $trigger, $cmdParts);
       }
-   }
-
-   public static $COMMANDS = [
-      "`fight @XXX` : Pick a fight with @XXX",
-      "`forefeit` : Quit your current fight (counts as a loss)",
-      "`status` : Get your health, your opponent's health, and other info about the fight",
-      "`equip XXX` : Equip an item in your inventory",
-      "`use XXX` : Use a move on an opponent"
-   ];
-   public static function displayHelp() {
-      return new FightInfoMessage(self::$COMMANDS);
    }
 
    public static function runFight($fight, $user, $otherFight, $opponent, $action, $command) {

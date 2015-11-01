@@ -41,6 +41,7 @@ namespace Fight;
 
 use Fight\Controller\FightController;
 use Fight\Attachment\FightErrorMessage;
+use Fight\Attachment\FightMessage;
 
 class Main
 {
@@ -75,12 +76,24 @@ class Main
       }
 
       try {
-         $result = FightController::$method($user, $params["text"]);
+         $argv = explode(" ", $params["text"]);
+         $argc = count($argv);
+         $fight = FightController::findFight($user, $params["channel_id"]);
+
+         $method .= "_";
+         $result = FightController::$method($argc, $argv, $user, $fight, $params);
 
          return self::packageData(200, $result);
       }
       catch (Exception $e) {
-         return self::packageData($e->getCode(), new FightErrorMessage($e->getMessage()));
+         if ($e->getCode() === 200) {
+            $message = new FightMessage("warning", $e->getMessage());
+         }
+         else {
+            $message = new FightErrorMessage($e->getMessage());
+         }
+
+         return self::packageData($e->getCode(), $message);
       }
    }
 
@@ -92,6 +105,6 @@ class Main
    }
 
    public static function isMethod($method) {
-      return method_exists(FightController, $method);
+      return method_exists(FightController, $method . "_");
    }
 }
