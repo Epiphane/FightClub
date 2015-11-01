@@ -36,7 +36,7 @@ class SlackWrapper
 
       if ($path === "fight") {
          $command = explode(" ", $text)[0];
-         if (FightEndpoint::isEndpoint($command)) {
+         if (Main::isMethod($command)) {
             $path = $command;
             $text = substr($text, strlen($command) + 1);
          }

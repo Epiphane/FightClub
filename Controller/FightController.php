@@ -25,6 +25,11 @@ define("SERVER_ERR", "Sorry! Server Error! Code: ");
 
 class FightController
 {
+   public static function fight()
+
+   /**
+    * Find a user by user ID and team ID, and create the user if they don't exist.
+    */
    public static function findUser($team_id, $user_id) {
       $request = new \Data\Request();
       $request->Filter[] = new \Data\Filter("team_id", $team_id);
@@ -84,7 +89,7 @@ class FightController
       return self::findUser($team_id, $user_id);
    }
 
-   public static function fight($user, $channel_id, $trigger, $command) {
+   public static function _fight($user, $channel_id, $trigger, $command) {
       if ($command === "fight help") {
          return self::displayHelp();
       }

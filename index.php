@@ -39,6 +39,9 @@ if (!defined(NO_AUTOLOAD)) {
 
 namespace Fight;
 
+use Fight\Controller\FightController;
+use Fight\Attachment\FightErrorMessage;
+
 class Main
 {
    /**
@@ -49,9 +52,9 @@ class Main
     *  Ex [
     *    "text" => "<@USLACKBOT>,
     *    "user_id" => "U0B2QPTNU",
-    *    "user_name" => "thomassteinke",
     *    "team_id" => "T0B2LSLP6",
-    *    "channel_id" => "C0CS03RK4"
+    *    "channel_id" => "C0CS03RK4",
+    *    "user_name" => "thomassteinke" ** Optional
     *  ]
     * @return array - [
     *    status => HTTP status,
@@ -59,6 +62,36 @@ class Main
     * ]
     */
    public static function main($method, $params) {
+      $user = FightController::findUser($params["team_id"], $params["user_id"]);
+      if ($params["user_name"] && $params["user_name"] !== $user->slack_name) {
+         $user->update(["slack_name" => $params["user_name"]]);
+      }
 
+      // Make sure the method is fine
+      if (!self::isMethod($method)) {
+         return self::packageData(400, [
+            new FightErrorMessage("Command `" . $method . "` isn't available")
+         ]);
+      }
+
+      try {
+         $result = FightController::$method($user, $params["text"]);
+
+         return self::packageData(200, $result);
+      }
+      catch (Exception $e) {
+         return self::packageData($e->getCode(), new FightErrorMessage($e->getMessage()));
+      }
+   }
+
+   public static function packageData($status, $data) {
+      return [
+         "status" => $status,
+         "data" => $data
+      ];
+   }
+
+   public static function isMethod($method) {
+      return method_exists(FightController, $method);
    }
 }
