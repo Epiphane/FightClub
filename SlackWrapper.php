@@ -54,6 +54,7 @@ class SlackWrapper
       header($status_header);
       header('Content-Type: application/json');
 
+
       // TODO Send attachments to Slack if token is available
       $attachments = [];
       foreach ($result["data"] as $update) {
@@ -62,7 +63,7 @@ class SlackWrapper
 
       // Add a space so we don't trigger ourselves
       echo json_encode([
-         "text" => " " . $implode("\n", $attachments)
+         "text" => " " . implode("\n", $attachments)
       ]);
    }
 }

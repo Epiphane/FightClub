@@ -1,14 +1,14 @@
 <?
 
 /*
- * FightInfoMessage class file
+ * FightErrorMessage class file
  *
  * @author Thomas Steinke
  */
 
 namespace Fight\Attachment;
 
-class FightInfoMessage extends FightMessage
+class FightErrorMessage extends FightMessage
 {
    public function __construct($message) {
       parent::__construct("danger", $message);

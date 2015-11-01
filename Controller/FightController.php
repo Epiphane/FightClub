@@ -112,35 +112,35 @@ class FightController
       return new FightInfoMessage(self::$COMMANDS);
    }
 
-   public static function settings_($argc, argv, $user, $fight, $params) {
+   public static function settings_($argc, $argv, $user, $fight, $params) {
       return new FightMessage("warning", "Sorry, settings is not implemented yet.");
    }
 
-   public static function reaction_($argc, argv, $user, $fight, $params) {
+   public static function reaction_($argc, $argv, $user, $fight, $params) {
       return new FightMessage("warning", "Sorry, reaction is not implemented yet.");
    }
 
-   public static function item_($argc, argv, $user, $fight, $params) {
+   public static function item_($argc, $argv, $user, $fight, $params) {
       return new FightMessage("warning", "Sorry, item is not implemented yet.");
    }
 
-   public static function craft_($argc, argv, $user, $fight, $params) {
+   public static function craft_($argc, $argv, $user, $fight, $params) {
       return new FightMessage("warning", "Sorry, craft is not implemented yet.");
    }
 
-   public static function status_($argc, argv, $user, $fight, $params) {
+   public static function status_($argc, $argv, $user, $fight, $params) {
       return new FightMessage("warning", "Sorry, status is not implemented yet.");
    }
 
-   public static function equip_($argc, argv, $user, $fight, $params) {
+   public static function equip_($argc, $argv, $user, $fight, $params) {
       return new FightMessage("warning", "Sorry, equip is not implemented yet.");
    }
 
-   public static function ping_($argc, argv, $user, $fight, $params) {
+   public static function ping_($argc, $argv, $user, $fight, $params) {
       return new FightMessage("warning", "Sorry, ping is not implemented yet.");
    }
 
-   public static function use_($argc, argv, $user, $fight, $params) {
+   public static function use_($argc, $argv, $user, $fight, $params) {
       return new FightMessage("warning", "Sorry, use is not implemented yet.");
    }
 

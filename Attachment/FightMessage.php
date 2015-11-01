@@ -40,6 +40,6 @@ class FightMessage extends FightAttachment
    }
 
    public function toString() {
-      return $this->message;
+      return implode("\n", $this->message);
    }
 }
