@@ -7,9 +7,7 @@
  */
 namespace Fight\Model;
 
-use \Data\DAO;
-
-class FightReactionModel extends \Data\Model
+class FightReactionModel extends \Fight\Model\Model
 {
    public static $tableName = "fight_reaction";
 

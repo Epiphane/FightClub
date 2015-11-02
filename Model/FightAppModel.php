@@ -7,7 +7,7 @@
  */
 namespace Fight\Model;
 
-class FightAppModel extends \Data\Model
+class FightAppModel extends \Fight\Model\Model
 {
    public static $tableName = "fight_app";
 
