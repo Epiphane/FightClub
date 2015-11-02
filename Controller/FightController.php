@@ -7,6 +7,7 @@
  */
 namespace Fight\Controller;
 
+use \Exception;
 use \Fight\Model\FightUserModel;
 use \Fight\Model\FightModel;
 use \Fight\Model\FightItemModel;
@@ -18,9 +19,6 @@ use \Fight\Controller\FightReactionController;
 use \Fight\Controller\FightPrefsController;
 use \Fight\Attachment\FightMessage;
 use \Fight\Attachment\FightInfoMessage;
-use \Fight\Attachment\FightWarningMessage;
-use \Fight\Attachment\FightGoodMessage;
-use \Fight\Attachment\FightDangerMessage;
 
 class FightController
 {
@@ -71,12 +69,12 @@ class FightController
 
       // Build fight 1
       $fight1 = FightModel::build($fightParams);
-      if (!$fight1->save()) throw new \Exception("Server error. Code: 1");
+      if (!$fight1->save()) throw new Exception("Server error. Code: 1");
    
       // Build opponent's fight
       $fightParams["fight_id"] = $fight1->fight_id;
       $fight2 = FightModel::build($fightParams);
-      if (!$fight2->save()) throw new \Exception("Server error. Code: 2");
+      if (!$fight2->save()) throw new Exception("Server error. Code: 2");
 
       // Register the action
       FightActionController::registerAction($user, $fight1->fight_id, $user->tag() . " challenges " . $opponent->tag() . " to a fight!");
@@ -129,7 +127,7 @@ class FightController
    }
 
    public static function status_($argc, $argv, $user, $fight, $params) {
-      return new FightMessage("warning", "Sorry, status is not implemented yet.");
+      return FightController::status($user, $argv[1]);
    }
 
    public static function equip_($argc, $argv, $user, $fight, $params) {
@@ -141,6 +139,8 @@ class FightController
    }
 
    public static function use_($argc, $argv, $user, $fight, $params) {
+      self::requireFight($fight);
+
       return new FightMessage("warning", "Sorry, use is not implemented yet.");
    }
 
@@ -169,6 +169,10 @@ class FightController
          "fight" => $otherFight,
          "user" => FightUserModel::findOneWhere([ "user_id" => $otherFight->user_id ])
       ];
+   }
+
+   public static function requireFight($fight) {
+      if (!$fight) throw new Exception("You cannot do that unless you're in a fight!");
    }
 
    public static function _fight($user, $channel_id, $trigger, $command) {

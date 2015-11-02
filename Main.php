@@ -31,16 +31,15 @@
  * 
  */
 
-namespace Fight;
-
 require_once __DIR__ . "/config.php";
 
 if (!defined(NO_AUTOLOAD)) {
    require_once __DIR__ . "/autoload.php";
 }
 
+namespace Fight;
+
 use Fight\Controller\FightController;
-use Fight\Controller\FightUserController;
 use Fight\Attachment\FightErrorMessage;
 use Fight\Attachment\FightMessage;
 
@@ -64,7 +63,7 @@ class Main
     * ]
     */
    public static function main($method, $params) {
-      $user = FightUserController::findUser($params["team_id"], $params["user_id"]);
+      $user = FightController::findUser($params["team_id"], $params["user_id"]);
       if ($params["user_name"] && $params["user_name"] !== $user->slack_name) {
          $user->update(["slack_name" => $params["user_name"]]);
       }
@@ -99,10 +98,6 @@ class Main
    }
 
    public static function packageData($status, $data) {
-      if (!is_array($data)) {
-         $data = [$data];
-      }
-
       return [
          "status" => $status,
          "data" => $data
@@ -110,6 +105,6 @@ class Main
    }
 
    public static function isMethod($method) {
-      return is_callable(FightController, $method . "_");
+      return method_exists(FightController, $method . "_");
    }
 }
