@@ -62,47 +62,6 @@ class FightActionController
       }
    }
 
-   public static function equipItem($user, $type, $itemName) {
-      $item = FightItemController::getItem($user, $itemName);
-
-      if ($item) {
-         $user->update([
-            $type => $item->item_id
-         ]);
-
-         return new FightGoodMessage("You equipped `" . $itemName . "`!");
-      }
-      else {
-         return new FightWarningMessage("Sorry, you don't have an item named `" . $itemName . "`");
-      }
-   }
-
-   public static function _equip($fight, $user, $otherFight, $opponent, $action, $command) {
-      $itemName = implode(" ", array_slice($command, 2));
-      if ($command[1] !== "weapon" && $command[1] !== "armor") {
-         return new FightInfoMessage("Usage: `equip (weapon|armor) " . $itemName . "`");
-      }
-
-      $result = FightActionController::equipItem($user, $command[1], $itemName);
-      $item = FightItemController::getItem($user, $itemName);
-
-      if ($item) {
-         $user->update([
-            $command[1] => $item->item_id
-         ]);
-
-         FightActionController::registerAction($user, $fight->fight_id, $user . "equipped `" . $itemName . "`!");
-         return new FightGoodMessage("You equipped `" . $itemName . "`! (yes, it used your turn)");
-      }
-      else {
-         return new FightWarningMessage("Sorry, you don't have an item named `" . $itemName . "`");
-      }
-   }
-
-   public static function _craft($fight, $user, $otherFight, $opponent, $action, $command) {
-      return FightCraftController::craft($fight, $user, $otherFight, $opponent, $action, $command);
-   }
-
    public static function registerAction($user, $fight_id, $description) {
       $action = FightActionModel::build([
          "fight_id" => $fight_id,

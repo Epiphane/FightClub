@@ -193,15 +193,15 @@ class FightItemController
             $item->update([ "user_id" => $user->user_id ]);
 
             return [
-               new FightMessage($message, $color),
+               new FightMessage($color, $message),
                new FightGoodMessage("You picked up: " . $item->name . "!")
             ];
          }
 
-         return new FightMessage($message, $color);
+         return new FightMessage($color, $message);
       }
 
-      $result = new FightMessage($message, $color);
+      $result = new FightMessage($color, $message);
       FightActionController::registerAction($user, $fight->fight_id, $result->toString());
 
       if ($opponent->AI) {

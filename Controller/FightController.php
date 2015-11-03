@@ -213,14 +213,57 @@ class FightController
    }
 
    public static function craft_($argc, $argv, $user, $fight, $params) {
-      return new FightMessage("warning", "Sorry, craft is not implemented yet.");
+      $argS = implode(" ", array_slice($argv, 1));
+      if (!$fight) {
+         $itemCount = FightItemModel::findWhere([ "user_id", $user->user_id ]);
+
+         if ($itemCount->size() >= 10) {
+            return new FightDangerMessage("Sorry, you may not have more than 10 items. Type `item drop XXX` to drop an old item");
+         }
+
+         return FightCraftController::startCrafting($user, $params["channel_id"], $argS);
+      }
+      else {
+         list($otherFight, $opponent) = self::getOpponent($fight);
+
+         return FightCraftController::craft($fight, $user, $otherFight, $opponent, $argS);
+      }
    }
 
    public static function equip_($argc, $argv, $user, $fight, $params) {
-      return new FightMessage("warning", "Sorry, equip is not implemented yet.");
+      $itemName = implode(" ", array_slice($argv, 2));
+      if ($argv[1] !== "weapon" && $argv[1] !== "armor") {
+         return new FightInfoMessage("Usage: `equip (weapon|armor) " . $itemName . "`");
+      }
+
+      $item = FightItemController::getItem($user, $itemName);
+
+      if ($item) {
+         if ($fight) {
+            self::requireTurn($user, $fight);
+         }
+
+         $user->update([
+            $argv[1] => $item->item_id
+         ]);
+
+         if ($fight) {
+            FightActionController::registerAction($user, $fight->fight_id, $user->tag() . "equipped `" . $itemName . "`!");
+
+            return new FightMessage("good", "You equipped `" . $itemName . "`! (yes, it used your turn)");
+         }
+         else {
+            return new FightMessage("good", "You equipped `" . $itemName . "`!");
+         }
+      }
+      else {
+         return new FightMessage("warning", "Sorry, you don't have an item named `" . $itemName . "`");
+      }
    }
 
-         // return self::runFight($existing, $user, $otherFight, $opponent, $trigger, $cmdParts);
+   /* ----------------- */
+   /* Utility functions */
+   /* ----------------- */
 
    public static function findFight($user, $channel_id) {
       return FightModel::findOneWhere([
@@ -324,59 +367,7 @@ class FightController
             }
          }
          else if ($trigger === "craft") {
-            $itemCount = FightItemModel::findWhere([ "user_id", $user->user_id ]);
-
-            if ($itemCount->size() >= 10) {
-               return new FightDangerMessage("Sorry, you may not have more than 10 items. Type `item drop XXX` to drop an old item");
-            }
-
-            return FightCraftController::startCrafting($user, $channel_id, array_slice($cmdParts, 1));
-         }
-         else if ($trigger === "status") {
-            return FightController::status($user, $cmdParts[1]);
-         }
-         else if ($trigger === "equip") {
-            $itemName = implode(" ", array_slice($cmdParts, 2));
-            if ($cmdParts[1] !== "weapon" && $cmdParts[1] !== "armor") {
-               return new FightInfoMessage("Usage: `equip (weapon|armor) " . $itemName . "`");
-            }
-
-            return FightActionController::equipItem($user, $cmdParts[1], $itemName);
-         }
-         else {
-            return new FightDangerMessage("Sorry, you're not fighting anyone right now. Type `fight XXX` to start a fight!");
          }
       }
-      else {
-         $request = new \Data\Request();
-         $request->Filter[] = new \Data\Filter("fight_id", $existing->fight_id);
-         $request->Filter[] = new \Data\Filter("channel_id", $channel_id);
-         $request->Filter[] = new \Data\Filter("user_id", $existing->user_id, "!=");
-
-         $otherFight = FightModel::findOne($request);
-         $opponent = FightUserModel::findOneWhere([ "user_id" => $otherFight->user_id ]);
-
-         if ($command === "fight ping") {
-            return new FightDangerMessage("Come on, " . $opponent->tag() . "! Make a move!");
-         }
-
-         return self::runFight($existing, $user, $otherFight, $opponent, $trigger, $cmdParts);
-      }
-   }
-
-   public static function runFight($fight, $user, $otherFight, $opponent, $action, $command) {
-      $request = new \Data\Request();
-      $request->Sort[] = new \Data\Sort("action_id", "DESC");
-      $request->Filter[] = new \Data\Filter("fight_id", $fight->fight_id);
-      $request->Filter[] = new \Data\Filter("created_at", date('Y-m-d H:i:s', strtotime('-5 minutes')), ">=");
-      $lastAction = FightActionModel::findOne($request);
-
-      if (!in_array($action, ["status", "forefeit", "craft"]) && $lastAction->actor_id === $user->user_id && $opponent->name !== "USLACKBOT") {
-         return new FightDangerMessage("It's not your turn! (if your opponent does not go for 5 minutes, it will become your turn)");
-      }
-
-      $action = "_" . $action;
-
-      return FightActionController::$action($fight, $user, $otherFight, $opponent, $action, $command);
    }
 }

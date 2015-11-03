@@ -12,15 +12,11 @@ use \Fight\Model\FightModel;
 use \Fight\Model\FightItemModel;
 use \Fight\Controller\FightActionController;
 use \Fight\Attachment\FightInfoMessage;
-use \Fight\Attachment\FightWarningMessage;
-use \Fight\Attachment\FightGoodMessage;
-use \Fight\Attachment\FightDangerMessage;
+use \Fight\Attachment\FightMessage;
 
 class FightCraftController
 {
-   public static function startCrafting($user, $channel_id, $args) {
-      $name = implode(" ", $args);
-
+   public static function startCrafting($user, $channel_id, $name) {
       if ($name) {
          $item = FightItemModel::build([
             "name" => $name,
@@ -108,21 +104,21 @@ class FightCraftController
          $options[] = "craft " . $command;
       }
 
-      return new FightWarningMessage("Choose an " . $word . ": " . implode(", ", $optionsNice) . ". `(" . implode(" | ", $options) . ")`");
+      return new FightMessage("warning", "Choose an " . $word . ": " . implode(", ", $optionsNice) . ". `(" . implode(" | ", $options) . ")`");
    }
 
    public static function generateQuestion($item) {
       if (!$item->name) {
-         return new FightWarningMessage("What is the name of your creation? (Prefix all commands with `craft` please)");
+         return new FightMessage("warning", "What is the name of your creation? (Prefix all commands with `craft` please)");
       }
       elseif (!$item->type) {
-         return new FightWarningMessage("Is " . $item->name . " a move or an item? `(craft move | craft item)`");
+         return new FightMessage("warning", "Is " . $item->name . " a move or an item? `(craft move | craft item)`");
       }
       else {
          $stats = $item->stats;
 
          if ($stats["virtue"]) {
-            return new FightGoodMessage("Type `craft complete` to complete " . $item->name . "!");
+            return new FightMessage("good", "Type `craft complete` to complete " . $item->name . "!");
          }
          elseif ($stats["element"]) {
             if ($stats["alignment"]) {
@@ -132,7 +128,7 @@ class FightCraftController
                   foreach (self::$virtues[$stats["origin"]] as $virtue) {
                      if ($virtue) $virt[] = ucwords($virtue);
                   }
-                  return new FightWarningMessage($str . implode(" or ", $virt));
+                  return new FightMessage("warning", $str . implode(" or ", $virt));
                }
                else {
                   return self::chooseA("Origin", self::$origins[$stats["element"] . ":" . $stats["alignment"]]);
@@ -165,12 +161,12 @@ class FightCraftController
       return $stats;
    }
 
-   public static function craft($fight, $user, $otherFight, $opponent, $action, $command) {
+   public static function craft($fight, $user, $otherFight, $opponent, $command) {
       if ($opponent->name !== "UCRAFTBOT") {
-         return new FightDangerMessage("You're in the middle of a fight! Type `forefeit` or go to a different channel.");
+         return new FightMessage("danger", "You're in the middle of a fight! Type `forefeit` or go to a different channel.");
       }
 
-      $argS = strtolower(implode(array_slice($command, 1)));
+      $argS = strtolower($command);
       $item = FightItemModel::findOneWhere([ "item_id" => $fight->health ]);
 
       if ($argS) {
@@ -179,7 +175,7 @@ class FightCraftController
          }
          elseif (!$item->type) {
             if ($argS !== "move" && $argS !== "item") {
-               return new FightWarningMessage("Please enter `move` or `item`");
+               return new FightMessage("warning", "Please enter `move` or `item`");
             }
 
             $item->update([ "type" => $argS ]);
@@ -200,21 +196,21 @@ class FightCraftController
                      if (self::$virtues[$argS]) {
                         $stats["origin"] = $argS;
                      }
-                     else return new FightDangerMessage("Option `" . $argS . "` not available.\n" . self::generateQuestion($item));
+                     else return new FightMessage("danger", "Option `" . $argS . "` not available.\n" . self::generateQuestion($item));
                   }
                }
                else {
                   if (self::$origins[$stats["element"] . ":" . $argS]) {
                      $stats["alignment"] = $argS;
                   }
-                  else return new FightDangerMessage("Option `" . $argS . "` not available.\n" . self::generateQuestion($item));
+                  else return new FightMessage("danger", "Option `" . $argS . "` not available.\n" . self::generateQuestion($item));
                }
             }
             else {
                if (self::$alignments[$argS]) {
                   $stats["element"] = $argS;
                }
-               else return new FightDangerMessage("Option `" . $argS . "` not available.\n" . self::generateQuestion($item));
+               else return new FightMessage("danger", "Option `" . $argS . "` not available.\n" . self::generateQuestion($item));
             }
 
             $item->update([ "stats" => $stats ]);
@@ -258,7 +254,7 @@ class FightCraftController
                   $stats["defense"] += 10;
                   break;
                default:
-                  return "ZOMG You shouldn't be here!";
+                  throw new Exception("ZOMG You shouldn't be here!");
             }
 
             $stats = self::incStats($stats, $stats["origin"]);
@@ -271,7 +267,7 @@ class FightCraftController
             $otherFight->update([ "status" => "complete" ]);
          
             FightActionController::registerAction($user, $fight->fight_id, $item->name . " created!");
-            return new FightGoodMessage($item->name . " created!");
+            return new FightMessage("good", $item->name . " created!");
          }
 
          FightActionController::registerAction($user, $fight->fight_id, $argS);

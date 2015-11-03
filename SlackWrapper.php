@@ -108,7 +108,7 @@ class SlackWrapper
          header('Content-Type: application/json');
 
          echo json_encode([
-            "text" => "ERROR: " . $errstr
+            "text" => "ERROR: " . $errstr . " at " . $errfile . ":" . $errline
          ]);
       }
    }
