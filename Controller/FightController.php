@@ -209,7 +209,40 @@ class FightController
    }
 
    public static function item_($argc, $argv, $user, $fight, $params) {
-      return new FightMessage("warning", "Sorry, item is not implemented yet.");
+      if ($argv[1] === "drop") {
+         $itemName = implode(" ", array_slice($argv, 2));
+
+         $item = FightItemModel::findOneWhere([
+            "user_id" => $user->user_id,
+            "name" => $itemName,
+            "deleted" => 0
+         ]);
+
+         if ($item) {
+            $item->update([ "deleted" => 1 ]);
+
+            return new FightMessage("good", $itemName . " dropped! Bye Bye!");
+         }
+         else {
+            return new FightMessage("warning", "Sorry, " . $itemName . " couldn't be found.");
+         }
+      }
+      else {
+         $itemName = implode(" ", array_slice($argv, 1));
+
+         $item = FightItemModel::findOneWhere([
+            "user_id" => $user->user_id,
+            "name" => $itemName,
+            "deleted" => 0
+         ]);
+
+         if ($item) {
+            return new FightMessage("good", $item->desc());
+         }
+         else {
+            return new FightMessage("warning", "Sorry, " . $itemName . " couldn't be found.");
+         }
+      }
    }
 
    public static function craft_($argc, $argv, $user, $fight, $params) {
@@ -305,69 +338,6 @@ class FightController
 
       if ($lastAction->actor_id === $user->user_id) {
          throw new Exception("It's not your turn! (if your opponent does not go for 5 minutes, it will become your turn)");
-      }
-   }
-
-   public static function _fight($user, $channel_id, $trigger, $command) {
-      if ($command === "fight help") {
-         return self::help_();
-      }
-
-      $settings = FightPrefsController::findById($channel_id);
-
-      $existing = FightModel::findOneWhere([
-         "user_id" => $user->user_id,
-         "channel_id" => $channel_id,
-         "status" => "progress"
-      ]);
-      $cmdParts = explode(" ", $command);
-
-      if ($cmdParts[1] === "reaction") {
-         return FightReactionController::addReaction($user, $cmdParts[2], $cmdParts[3]);
-      }
-      elseif ($cmdParts[1] === "settings") {
-         return FightPrefsController::updateSettings($settings, array_slice($cmdParts, 2));
-      }
-
-      if (!$existing) {
-         if ($trigger === "item") {
-            if ($cmdParts[1] === "drop") {
-               $itemName = implode(" ", array_slice($cmdParts, 2));
-
-               $item = FightItemModel::findOneWhere([
-                  "user_id" => $user->user_id,
-                  "name" => $itemName,
-                  "deleted" => 0
-               ]);
-
-               if ($item) {
-                  $item->update([ "deleted" => 1 ]);
-
-                  return new FightGoodMessage($itemName . " dropped! Bye Bye!");
-               }
-               else {
-                  return new FightWarningMessage("Sorry, " . $itemName . " couldn't be found.");
-               }
-            }
-            else {
-               $itemName = implode(" ", array_slice($cmdParts, 1));
-
-               $item = FightItemModel::findOneWhere([
-                  "user_id" => $user->user_id,
-                  "name" => $itemName,
-                  "deleted" => 0
-               ]);
-
-               if ($item) {
-                  return new FightGoodMessage($item->desc());
-               }
-               else {
-                  return new FightWarningMessage("Sorry, " . $itemName . " couldn't be found.");
-               }
-            }
-         }
-         else if ($trigger === "craft") {
-         }
       }
    }
 }
