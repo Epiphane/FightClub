@@ -6,7 +6,9 @@
  */
 namespace Fight\Model;
 
-use \Data\DAO;
+use \Fight\Data\DAO;
+use \Fight\Data\Request;
+use \Fight\Data\Filter;
 
 class Model
 {
@@ -39,7 +41,7 @@ class Model
 				if ($runs === 10) {
 					_log("10 collisions, aborting..");
 
-					die();
+					throw new \Exception ("Primary Key collisions");
 				}
 			}
 		}
@@ -88,7 +90,7 @@ class Model
 
 	public function save() {
 		$model = get_called_class();
-		$dao = new \Data\DAO($model);
+		$dao = new DAO($model);
 	
 		if ($this->_new) {
 			return $dao->create($this);
@@ -115,47 +117,47 @@ class Model
 			unset($attrs[$key]);
 		}
 
-		$dao = new \Data\DAO(get_called_class());
+		$dao = new DAO(get_called_class());
 
 		return $dao->update($this, $attrs);
 	}
 
 	public static function findById($id) {
-		$request = new \Data\Request();
+		$request = new Request();
 		$pKey    = self::getPrimaryKey(get_called_class());
 		foreach ($pKey as $index => $key) {
-			$request->Filter[] = new \Data\Filter($key, func_get_arg($index));
+			$request->Filter[] = new Filter($key, func_get_arg($index));
 		}
 
 		return self::findOne($request);
 	}
 
 	public static function findOneWhere($properties) {
-		$request = new \Data\Request();
+		$request = new Request();
 		foreach ($properties as $property => $value) {
-			$request->Filter[] = new \Data\Filter($property, $value);
+			$request->Filter[] = new Filter($property, $value);
 		}
 
 		return self::findOne($request);
 	}
 
 	public static function findWhere($properties) {
-		$request = new \Data\Request();
+		$request = new Request();
 		foreach ($properties as $property => $value) {
-			$request->Filter[] = new \Data\Filter($property, $value);
+			$request->Filter[] = new Filter($property, $value);
 		}
 
 		return self::find($request);
 	}
 
 	public static function find($request) {
-		$dao = new \Data\DAO(get_called_class());
+		$dao = new DAO(get_called_class());
 
 		return $dao->find($request);
 	}
 
 	public static function findOne($request) {
-		$dao = new \Data\DAO(get_called_class());
+		$dao = new DAO(get_called_class());
 
 		return $dao->findOne($request);
 	}

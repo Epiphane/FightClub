@@ -77,7 +77,7 @@ class Main
       }
 
       try {
-         $argv = explode(" ", $params["text"]);
+         $argv = explode(" ", $method . " " . $params["text"]);
          $argc = count($argv);
          $fight = FightController::findFight($user, $params["channel_id"]);
 
@@ -87,6 +87,7 @@ class Main
          return self::packageData(200, $result);
       }
       catch (Exception $e) {
+        var_dump($e);
          if ($e->getCode() === 200) {
             $message = new FightMessage("warning", $e->getMessage());
          }

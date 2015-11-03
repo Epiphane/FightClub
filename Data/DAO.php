@@ -7,12 +7,12 @@
  */
 namespace Fight\Data;
 
-use \Data\DB;
-use \Data\Model;
-use \Data\Collection;
-use \Data\Request;
-use \Data\Filter;
-use \Data\InFilter;
+use \Fight\Data\DB;
+use \Fight\Data\Model;
+use \Fight\Data\Collection;
+use \Fight\Data\Request;
+use \Fight\Data\Filter;
+use \Fight\Data\InFilter;
 
 class DAO
 {
@@ -36,7 +36,7 @@ class DAO
    }
 
    protected function initDbConnection() {
-      $this->connection = \Data\DB::getConnection();
+      $this->connection = DB::getConnection();
    }
 
    public function setColumns($columns) {
@@ -159,7 +159,7 @@ class DAO
    }
 
    public static function query($query) {
-      $connection = \Data\DB::getConnection();
+      $connection = DB::getConnection();
       $q = $connection->prepare($query);
 
       if (!$q) {

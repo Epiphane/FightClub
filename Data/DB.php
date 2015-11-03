@@ -5,10 +5,10 @@ namespace Fight\Data;
 class DB
 {
 	// Database connection
-	private static $host     = DB_HOST;
-	private static $username = DB_USER;
-	private static $password = DB_PASS;
-	private static $database = DB_NAME;
+	private static $host     = FIGHT_DB_HOST;
+	private static $username = FIGHT_DB_USER;
+	private static $password = FIGHT_DB_PASS;
+	private static $database = FIGHT_DB_NAME;
 
 	public static function getConnection() {
 		$connect = mysqli_connect(self::$host, self::$username, self::$password, self::$database);

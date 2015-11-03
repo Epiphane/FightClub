@@ -29,7 +29,7 @@ class FightController
          return new FightMessage("danger", "You're already in a fight! Type `status` to see how you're doing");
       }
 
-      if ($argv !== 2 || in_array($argv[1], self::$RESERVED)) {
+      if ($argc !== 2 || in_array($argv[1], self::$RESERVED)) {
          return new FightInfoMessage([
             "Usage: `fight @XXX | fight monster`",
             "Type `fight help` for more commands"
@@ -42,9 +42,9 @@ class FightController
          $opponent->save();
       }
       else {
-         $opponent = FightUserController::findUserByTag($user->team_id, $argv1[1]);
+         $opponent = FightUserController::findUserByTag($user->team_id, $argv[1]);
          if (!$opponent) {
-            return new FightDangerMessage("danger", "Sorry, `" . $argv1[1] . "` is not recognized as a name");
+            return new FightMessage("danger", "Sorry, `" . $argv[1] . "` is not recognized as a name");
          }
       }
 
@@ -69,12 +69,17 @@ class FightController
 
       // Build fight 1
       $fight1 = FightModel::build($fightParams);
-      if (!$fight1->save()) throw new Exception("Server error. Code: 1");
+      if (!$fight1->save()) {
+         throw new Exception("Server error. Code: 1");
+      }
    
       // Build opponent's fight
       $fightParams["fight_id"] = $fight1->fight_id;
+      $fightParams["user_id"] = $opponent->user_id;
       $fight2 = FightModel::build($fightParams);
-      if (!$fight2->save()) throw new Exception("Server error. Code: 2");
+      if (!$fight2->save()) {
+         throw new Exception("Server error. Code: 2");
+      }
 
       // Register the action
       FightActionController::registerAction($user, $fight1->fight_id, $user->tag() . " challenges " . $opponent->tag() . " to a fight!");
@@ -99,6 +104,17 @@ class FightController
       return new FightMessage("good", "Bright it on, " . $opponent->tag() . "!!");
    }
 
+   public static function forefeit_($argc, $argv, $user, $fight, $params) {
+      list($otherFight, $opponent) = self::getOpponent($fight);
+
+      FightActionController::registerAction($user, $fight->fight_id, $user->tag() . " forefeits to " . $opponent->tag() . "!");
+
+      if (!$fight     ->update(["status" => "lose"])) throw new Exception("Server error. Code: 3");
+      if (!$otherFight->update(["status" => "win" ])) throw new Exception("Server error. Code: 4");
+
+      return new FightMessage("good", "You gave up! " . $opponent->tag() . " wins!");
+   }
+
    public static $COMMANDS = [
       "`fight @XXX` : Pick a fight with @XXX",
       "`forefeit` : Quit your current fight (counts as a loss)",
@@ -108,6 +124,80 @@ class FightController
    ];
    public static function help_() {
       return new FightInfoMessage(self::$COMMANDS);
+   }
+
+   public static function status_($argc, $argv, $user, $fight, $params) {
+      if (!$argv[1]) {
+         if ($fight) {
+            list($otherFight, $opponent) = self::getOpponent($fight);
+
+            return new FightMessage([
+               " ",
+               "Status update for " . $user->tag() . " (level " . $user->level . ")",
+               " - Health: " . $fight->health,
+               "You are fighting " . $opponent->tag() . " (level " . $opponent->level . ")",
+               " - Health: " . $otherFight->health,
+               "",
+               "Type `status help` for more status options"
+            ]);
+         }
+         else {
+            return new FightMessage([
+               "Status update for " . $user->tag() . " (level " . $user->level . ")",
+               "Type `status help` for more status options"
+            ]);
+         }
+      }
+      elseif ($argv[1] === "help") {
+         return new FightInfoMessage([
+            "`status`: General stats",
+            "`status help`: This Dialog",
+            "`status moves`: Your moves",
+            "`status items`: Your items"
+         ]);
+      }
+      elseif ($argv[1] === "items" || $argv[1] === "moves") {
+         $items = FightItemModel::findWhere([
+            "user_id" => $user->user_id,
+            "type" => substr($argv[1], 0, 4),
+            "deleted" => 0
+         ]);
+
+         if ($items->size() === 0) {
+            return new FightWarningMessage([
+               "You have no " . $argv[1] . "!",
+               "Type `craft` to create one now"
+            ]);
+         }
+         else {
+            $output = ["Your " . $argv[1] . ":"];
+
+            foreach ($items->objects as $index => $item) {
+               $str = "";
+               if ($item->item_id === $user->weapon) $str = "`*`";
+               elseif ($item->item_id === $user->armor) $str = "`0`";
+
+               $output[] = $str . ($index + 1) . ". " . $item->name . " - " . $item->shortdesc();
+            }
+
+            return new FightInfoMessage($output);
+         }
+      }
+      else {
+         return new FightMessage("danger", "Command " . $argv[1] . " not found.");
+      }
+   }
+
+   public static function ping_($argc, $argv, $user, $fight, $params) {
+      $opponent = self::getOpponent($fight)[1];
+
+      return new FightMessage("danger", "Come on, " . $opponent->tag() . "! Make a move!");
+   }
+
+   public static function use_($argc, $argv, $user, $fight, $params) {
+      self::requireTurn($user, $fight);
+
+      return FightActionController::useItem($user, $fight, implode(" ", array_slice($argv, 1)));
    }
 
    public static function settings_($argc, $argv, $user, $fight, $params) {
@@ -126,27 +216,9 @@ class FightController
       return new FightMessage("warning", "Sorry, craft is not implemented yet.");
    }
 
-   public static function status_($argc, $argv, $user, $fight, $params) {
-      return FightController::status($user, $argv[1]);
-   }
-
    public static function equip_($argc, $argv, $user, $fight, $params) {
       return new FightMessage("warning", "Sorry, equip is not implemented yet.");
    }
-
-   public static function ping_($argc, $argv, $user, $fight, $params) {
-      return new FightMessage("warning", "Sorry, ping is not implemented yet.");
-   }
-
-   public static function use_($argc, $argv, $user, $fight, $params) {
-      self::requireFight($fight);
-
-      return new FightMessage("warning", "Sorry, use is not implemented yet.");
-   }
-
-         // if ($command === "fight ping") {
-         //    return new FightDangerMessage("Come on, " . $opponent->tag() . "! Make a move!");
-         // }
 
          // return self::runFight($existing, $user, $otherFight, $opponent, $trigger, $cmdParts);
 
@@ -159,20 +231,38 @@ class FightController
    }
 
    public static function getOpponent($fight) {
-      $request = new \Data\Request();
-      $request->Filter[] = new \Data\Filter("fight_id", $fight->fight_id);
-      $request->Filter[] = new \Data\Filter("channel_id", $fight->channel_id);
-      $request->Filter[] = new \Data\Filter("user_id", $fight->user_id, "!=");
+      self::requireFight($fight);
+
+      $request = new \Fight\Data\Request();
+      $request->Filter[] = new \Fight\Data\Filter("fight_id", $fight->fight_id);
+      $request->Filter[] = new \Fight\Data\Filter("channel_id", $fight->channel_id);
+      $request->Filter[] = new \Fight\Data\Filter("user_id", $fight->user_id, "!=");
 
       $otherFight = FightModel::findOne($request);
-      return [
-         "fight" => $otherFight,
-         "user" => FightUserModel::findOneWhere([ "user_id" => $otherFight->user_id ])
-      ];
+
+      if (!$otherFight) {
+         throw new Exception("You are not in a fight!");
+      }
+
+      return [ $otherFight, FightUserModel::findOneWhere([ "user_id" => $otherFight->user_id ]) ];
    }
 
    public static function requireFight($fight) {
       if (!$fight) throw new Exception("You cannot do that unless you're in a fight!");
+   }
+
+   public static function requireTurn($user, $fight) {
+      self::requireFight($fight);
+
+      $request = new \Fight\Data\Request();
+      $request->Sort[] = new \Fight\Data\Sort("action_id", "DESC");
+      $request->Filter[] = new \Fight\Data\Filter("fight_id", $fight->fight_id);
+      $request->Filter[] = new \Fight\Data\Filter("created_at", date('Y-m-d H:i:s', strtotime('-5 minutes')), ">=");
+      $lastAction = FightActionModel::findOne($request);
+
+      if ($lastAction->actor_id === $user->user_id) {
+         throw new Exception("It's not your turn! (if your opponent does not go for 5 minutes, it will become your turn)");
+      }
    }
 
    public static function _fight($user, $channel_id, $trigger, $command) {
@@ -197,74 +287,7 @@ class FightController
       }
 
       if (!$existing) {
-         if ($trigger === "fight") {
-            if (count($cmdParts) === 2 && $cmdParts[1] !== "help") {
-               if ($cmdParts[1] === "monster") {
-                  $opponent = FightAIController::getRandomMonster($user);
-
-                  $opponent->save();
-               }
-               else {
-                  $opponent = FightController::findUserByTag($user->team_id, $cmdParts[1]);
-                  if (!$opponent) {
-                     return new FightDangerMessage("Sorry, `" . $cmdParts[1] . "` is not recognized as a name");
-                  }
-               }
-
-               $otherExisting = FightModel::findOneWhere([
-                  "user_id" => $opponent->user_id,
-                  "channel_id" => $channel_id,
-                  "status" => "progress"
-               ]);
-
-               if ($otherExisting) {
-                  return new FightDangerMessage("Sorry, " . $opponent->tag() . " is already in a fight. Maybe take this somewhere else?");
-               }
-
-               $INITIAL_HEALTH = 100;
-
-               $fight1 = FightModel::build([
-                  "user_id" => $user->user_id,
-                  "channel_id" => $channel_id,
-                  "status" => "progress",
-                  "health" => $INITIAL_HEALTH
-               ]);
-               if (!$fight1->save()) return SERVER_ERR . "1";
-            
-               $fight2 = FightModel::build([
-                  "fight_id" => $fight1->fight_id,
-                  "user_id" => $opponent->user_id,
-                  "channel_id" => $channel_id,
-                  "status" => "progress",
-                  "health" => $INITIAL_HEALTH
-               ]);
-               if (!$fight2->save()) return SERVER_ERR . "2";
-
-               FightActionController::registerAction($user, $fight1->fight_id, $user->tag() . " challenges " . $opponent->tag() . " to a fight!");
-
-               if ($opponent->AI) {
-                  $computerMove = FightAIController::computerMove($user, $fight1, $opponent, $fight2);
-
-                  if (!is_array($computerMove)) {
-                     $computerMove = [$computerMove];
-                  }
-
-                  foreach ($computerMove as $action) {
-                     FightActionController::registerAction($opponent, $fight2->fight_id, $action->toString());
-                  }
-
-                  array_unshift($computerMove, new FightWarningMessage("A wild " . $opponent->tag() . " appeared!"));
-
-                  return $computerMove;
-               }
-
-               return new FightGoodMessage("Bright it on, " . $opponent->tag() . "!!");
-            }
-            else {
-               return new FightInfoMessage("Usage: `fight @XXX | fight monster`\nType `fight help` for more commands");
-            }
-         }
-         else if ($trigger === "item") {
+         if ($trigger === "item") {
             if ($cmdParts[1] === "drop") {
                $itemName = implode(" ", array_slice($cmdParts, 2));
 
@@ -355,52 +378,5 @@ class FightController
       $action = "_" . $action;
 
       return FightActionController::$action($fight, $user, $otherFight, $opponent, $action, $command);
-   }
-
-   public static function status($user, $section = "") {
-      if (!$section) {
-         return new FightMessage([
-            "Status update for " . $user->tag() . " (level " . $user->level . ")",
-            "Type `status help` for more status options"
-         ]);
-      }
-      elseif ($section === "help") {
-         return new FightInfoMessage([
-            "`status`: General stats",
-            "`status help`: This Dialog",
-            "`status moves`: Your moves",
-            "`status items`: Your items"
-         ]);
-      }
-      elseif ($section === "items" || $section === "moves") {
-         $items = FightItemModel::findWhere([
-            "user_id" => $user->user_id,
-            "type" => substr($section, 0, 4),
-            "deleted" => 0
-         ]);
-
-         if ($items->size() === 0) {
-            return new FightWarningMessage([
-               "You have no " . $section . "!",
-               "Type `craft` to create one now"
-            ]);
-         }
-         else {
-            $output = ["Your " . $section . ":"];
-
-            foreach ($items->objects as $index => $item) {
-               $str = "";
-               if ($item->item_id === $user->weapon) $str = "`*`";
-               elseif ($item->item_id === $user->armor) $str = "`0`";
-
-               $output[] = $str . ($index + 1) . ". " . $item->name . " - " . $item->shortdesc();
-            }
-
-            return new FightInfoMessage($output);
-         }
-      }
-      else {
-         return new FightDangerMessage("Command " . $section . " not found.");
-      }
    }
 }

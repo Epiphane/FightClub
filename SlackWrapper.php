@@ -29,10 +29,12 @@ class SlackWrapper
    }
    */
 
+   public static $complete = false;
+
    public static function respond() {
       $params = $_POST;
       $path = $params["trigger_word"];
-      $text = substr($params["text"], 6);
+      $text = substr($params["text"], strlen($path) + 1);
 
       if ($path === "fight") {
          $command = explode(" ", $text)[0];
@@ -42,6 +44,9 @@ class SlackWrapper
          }
       }
 
+      ini_set("display_errors", 0);
+      set_exception_handler(["Fight\SlackWrapper", "error_handler"]);
+      register_shutdown_function(["Fight\SlackWrapper", "fatal_handler"]);
       $result = Main::main($path, [
          "text" => $text,
          "user_id" => $params["user_id"],
@@ -65,6 +70,47 @@ class SlackWrapper
       echo json_encode([
          "text" => " " . implode("\n", $attachments)
       ]);
+
+      self::$complete = true;
+   }
+
+   public static function error_handler($e) {
+      header('HTTP/1.1 200 OK');
+      header('Content-Type: application/json');
+
+      echo json_encode([
+         "text" => $e->getMessage()
+      ]);
+
+      self::$complete = true;
+      die();
+   }
+
+   public static function fatal_handler() {
+      if (self::$complete) {
+         return;
+      }
+
+      $errfile = "unknown file";
+      $errstr  = "shutdown";
+      $errno   = E_CORE_ERROR;
+      $errline = 0;
+
+      $error = error_get_last();
+
+      if( $error !== NULL) {
+         $errno   = $error["type"];
+         $errfile = $error["file"];
+         $errline = $error["line"];
+         $errstr  = $error["message"];
+
+         header('HTTP/1.1 200 OK');
+         header('Content-Type: application/json');
+
+         echo json_encode([
+            "text" => "ERROR: " . $errstr
+         ]);
+      }
    }
 }
 

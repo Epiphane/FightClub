@@ -57,7 +57,9 @@ class FightItemController
       "none" => []
    ];
 
-   public static function useMove($move, $user, $fight, $opponent, $otherFight) {
+   public static function useMove($move, $user, $fight) {
+      list($otherFight, $opponent) = FightController::getOpponent($fight);
+
       $message = [$user->tag() . " uses " . $move->name . "!"];
 
       $weapon = FightItemModel::findById($user->weapon);

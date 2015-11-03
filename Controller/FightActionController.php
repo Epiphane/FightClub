@@ -23,43 +23,12 @@ use \Fight\Attachment\FightDangerMessage;
 
 class FightActionController
 {
-   public static function _fight($fight, $user, $otherFight, $opponent, $action, $command) {
-      return new FightWarningMessage("You're already fighting " . $opponent->tag() . ". If you would like to forefeit, type `forefeit`.");
-   }
-   
-   public static function _forefeit($fight, $user, $otherFight, $opponent, $action, $command) {
-      FightActionController::registerAction($user, $fight->fight_id, $user->tag() . " forefeits to " . $opponent->tag() . "!");
-
-      if (!$fight     ->update(["status" => "lose"])) return new FightDangerMessage(SERVER_ERR . "3");
-      if (!$otherFight->update(["status" => "win" ])) return new FightDangerMessage(SERVER_ERR . "4");
-
-      return new FightGoodMessage("You gave up! " . $opponent->tag() . " wins!");
-   }
-
-   public static function _status($fight, $user, $otherFight, $opponent, $action, $command) {
-      if (count($command) === 1) {
-         return new FightMessage([
-            "Status update for " . $user->tag() . " (level " . $user->level . ")",
-            " - Health: " . $fight->health,
-            "You are fighting " . $opponent->tag() . " (level " . $opponent->level . ")",
-            " - Health: " . $otherFight->health,
-            "",
-            "\nType `status help` for more status options"
-         ]);
-      }
-      else {
-         return FightController::status($user, $command[1]);
-      }
-   }
-
-   public static function _use($fight, $user, $otherFight, $opponent, $action, $command) {
-      $action = implode(" ", array_slice($command, 1));
-
+   public static function useItem($user, $fight, $action) {
       if (strtolower($action) === "taunt") {
          FightActionController::registerAction($user, $fight->fight_id, $user->tag() . " uses Taunt!");
 
          return [
-            new FightGoodMessage([$user->tag() . " uses Taunt!", "What an insult!"]),
+            new FightMessage("good", [$user->tag() . " uses Taunt!", "What an insult!"]),
             new FightReaction($fight->channel_id)
          ];
       }
@@ -79,10 +48,10 @@ class FightActionController
             $result[] = "`" . $move->name . "`";
          }
 
-         return new FightDangerMessage($result);
+         return new FightMessage("danger", $result);
       }
       else {
-         $action = FightItemController::useMove($move, $user, $fight, $opponent, $otherFight);
+         $action = FightItemController::useMove($move, $user, $fight);
          if (!is_array($action)) {
             $action = [$action];
          }

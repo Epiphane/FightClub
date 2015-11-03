@@ -1,6 +1,6 @@
 <?
 
-if (!function_exists(__autoload)) {
+if (!function_exists("__autoload")) {
    function __autoload($class_name) {
       $parts = explode("\\", $class_name);
 

@@ -7,7 +7,7 @@
 namespace Fight\Data;
 
 use \Exception;
-use \Data\DAO;
+use \Fight\Data\DAO;
 
 class Collection
 {
