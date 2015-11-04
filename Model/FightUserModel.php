@@ -13,6 +13,7 @@ class FightUserModel extends \Fight\Model\Model
 
    public static $columns = [
       "user_id" => "int",
+      "email" => "string",
       "slack_name" => "string",
       "team_id" => "string",
       "AI" => "int",
@@ -29,6 +30,7 @@ class FightUserModel extends \Fight\Model\Model
    ];
 
    public $user_id;
+   public $email;
    public $slack_name;
    public $team_id;
    public $AI;
@@ -39,13 +41,9 @@ class FightUserModel extends \Fight\Model\Model
    public $armor;
    public $gold;
 
+   public $alias;
+
    public function tag() {
-      if ($this->name === "UCRAFTBOT") {
-         return "CraftBot";
-      }
-      if ($this->AI && $this->name !== "USLACKBOT") {
-         return ucwords($this->name);
-      }
-      return "<@" . $this->name . ">";
+      return $this->alias->tag();
    }
 }
