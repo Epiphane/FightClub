@@ -52,7 +52,7 @@ class FightItemModel extends \Fight\Model\Model
 
    public function shortdesc() {
       $output = "";
-      if ($this->stats["alignment"]) {
+      if ($this->stats["alignment"] && $this->stats["alignment"] !== "none") {
          $output .= "`" . ucwords($this->stats["alignment"]) . "` alignment, ";
          $output .= "`" . $this->stats["elemental"] . " " . $this->stats["alignment"] . "` & ";
       }

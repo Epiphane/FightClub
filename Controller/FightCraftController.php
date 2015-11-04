@@ -83,7 +83,7 @@ class FightCraftController
       "typhoon"    => ["cooperation", "", "", "", "", "resilience"],
       "forest"     => ["justice", "", "loyalty", "", "", ""],
       "cavern"     => ["mystery", "", "", "", "elusiveness", ""],
-      "iron"       => ["sharp", "", "heavy", "", "", ""],
+      "forge"      => ["sharp", "", "heavy", "", "", ""],
       "mechanical" => ["", "", "", "", "preparedness", "strategy"],
       "alliance"   => ["", "", "", "", "diplomacy", "steadfastness"],
       "village"    => ["coalition", "", "government", "", "", ""],
@@ -169,6 +169,14 @@ class FightCraftController
       $argS = strtolower($command);
       $item = FightItemModel::findOneWhere([ "item_id" => $fight->health ]);
 
+      if ($argS === "abort") {
+         $fight     ->update([ "status" => "lose" ]);
+         $otherFight->update([ "status" => "lose" ]);
+         $item->update([ "deleted" => 1 ]);
+
+         return new FightMessage("warning", "You stopped crafting " . $item->name . "!");
+      }
+
       if ($argS) {
          if (!$item->name) {
             $item->update([ "name" => $argS ]);
@@ -196,21 +204,30 @@ class FightCraftController
                      if (self::$virtues[$argS]) {
                         $stats["origin"] = $argS;
                      }
-                     else return new FightMessage("danger", "Option `" . $argS . "` not available.\n" . self::generateQuestion($item));
+                     else return [
+                        new FightMessage("danger", "Option `" . $argS . "` not available."),
+                        self::generateQuestion($item)
+                     ];
                   }
                }
                else {
                   if (self::$origins[$stats["element"] . ":" . $argS]) {
                      $stats["alignment"] = $argS;
                   }
-                  else return new FightMessage("danger", "Option `" . $argS . "` not available.\n" . self::generateQuestion($item));
+                  else return [
+                     new FightMessage("danger", "Option `" . $argS . "` not available."),
+                     self::generateQuestion($item)
+                  ];
                }
             }
             else {
                if (self::$alignments[$argS]) {
                   $stats["element"] = $argS;
                }
-               else return new FightMessage("danger", "Option `" . $argS . "` not available.\n" . self::generateQuestion($item));
+               else return [
+                  new FightMessage("danger", "Option `" . $argS . "` not available."),
+                  self::generateQuestion($item)
+               ];
             }
 
             $item->update([ "stats" => $stats ]);

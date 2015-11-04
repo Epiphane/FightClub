@@ -21,6 +21,7 @@ class FightUserModel extends \Fight\Model\Model
       "experience" => "int",
       "weapon" => "int",
       "armor" => "int",
+      "gold" => "int",
    ];
 
    public static $const_columns = [
@@ -36,6 +37,7 @@ class FightUserModel extends \Fight\Model\Model
    public $experience;
    public $weapon;
    public $armor;
+   public $gold;
 
    public function tag() {
       if ($this->name === "UCRAFTBOT") {

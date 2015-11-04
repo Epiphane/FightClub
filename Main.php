@@ -84,10 +84,9 @@ class Main
          $method .= "_";
          $result = FightController::$method($argc, $argv, $user, $fight, $params);
 
-         return self::packageData(200, $result);
+         return self::packageData(200, $result, $user);
       }
       catch (Exception $e) {
-        var_dump($e);
          if ($e->getCode() === 200) {
             $message = new FightMessage("warning", $e->getMessage());
          }
@@ -95,16 +94,17 @@ class Main
             $message = new FightErrorMessage($e->getMessage());
          }
 
-         return self::packageData($e->getCode(), $message);
+         return self::packageData($e->getCode(), $message, $user);
       }
    }
 
-   public static function packageData($status, $data) {
+   public static function packageData($status, $data, $user) {
       if (!is_array($data)) $data = [$data];
 
       return [
          "status" => $status,
-         "data" => $data
+         "data" => $data,
+         "user" => $user
       ];
    }
 

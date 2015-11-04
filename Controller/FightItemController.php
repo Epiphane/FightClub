@@ -181,11 +181,8 @@ class FightItemController
          $message[] = "(" . $damage . " damage) " . $opponent->tag() . " now has " . $newHealth . " health.";
       }
       else {
-         $fight     ->update(["status" => "win" ]);
-         $otherFight->update([
-            "health" => $newHealth,
-            "status" => "lose"
-         ]);
+         $levelUp = FightController::registerVictory($user, $fight, $opponent, $otherFight);
+         $otherFight->update([ "health" => $newHealth ]);
 
          $message[] = "(" . $damage . " damage) " . $opponent->tag() . " fainted!!";
 
@@ -194,11 +191,14 @@ class FightItemController
 
             return [
                new FightMessage($color, $message),
-               new FightGoodMessage("You picked up: " . $item->name . "!")
+               new FightMessage("good", "You picked up: " . $item->name . "!")
             ];
          }
 
-         return new FightMessage($color, $message);
+         return [
+            new FightMessage($color, $message),
+            $levelUp
+         ];
       }
 
       $result = new FightMessage($color, $message);

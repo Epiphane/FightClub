@@ -8,7 +8,10 @@
 
 namespace Fight;
 
+require_once __DIR__ . "/config.php";
+
 use Fight\Main;
+use Fight\Model\FightAppModel;
 
 class SlackWrapper
 {
@@ -30,6 +33,46 @@ class SlackWrapper
    */
 
    public static $complete = false;
+
+   public static function addApp() {
+      $request = curl_init("https://slack.com/api/oauth.access");
+
+      $params = [
+         "client_id" => "11088904788.13274729057",
+         "client_secret" => "b8d1c5e5875ea444adcbc595c52ee26c",
+         "code" => $_GET["code"]
+      ];
+
+      curl_setopt($request, CURLOPT_POST, true);
+      curl_setopt($request, CURLOPT_POSTFIELDS, $params);
+      curl_setopt($request, CURLOPT_RETURNTRANSFER, 1);
+
+      $response = json_decode(curl_exec($request), true);
+
+      if (!$response["ok"]) {
+         $status_header = 'HTTP/1.1 200 OK';
+         header($status_header);
+         header('Content-Type: text/html');
+
+         echo "App could not be added. Sorry!";
+
+         return;
+      }
+
+      $app = FightAppModel::build([
+         "team" => $response["team_id"],
+         "api_token" => $response["access_token"],
+         "channel" => $response["incoming_webhook"]["channel"]
+      ]);
+
+      $status_header = 'HTTP/1.1 200 OK';
+      header($status_header);
+      header('Content-Type: text/html');
+      $app->save();
+
+      echo "App added!<hr>" . 
+         "Please refer to <a href='http://thomassteinke.com/api/fight#add-outgoing>the previous page</a> to complete installation.";
+   }
 
    public static function respond() {
       $params = $_POST;
@@ -59,19 +102,53 @@ class SlackWrapper
       header($status_header);
       header('Content-Type: application/json');
 
-
       // TODO Send attachments to Slack if token is available
-      $attachments = [];
-      foreach ($result["data"] as $update) {
-         $attachments[] = $update->toString();
+      $app = FightAppModel::findById($params["team_id"]);
+
+      if ($app) {
+         $attachments = [];
+         foreach ($result["data"] as $update) {
+            $attachment = $update->toAttachment($result["user"]);
+            if ($attachment) $attachments[] = $attachment;
+         }
+
+         $ch = curl_init("https://slack.com/api/chat.postMessage");
+         curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => [
+               "token" => $app->api_token,
+               "channel" => $params["channel_id"],
+               "text" => "",
+               "username" => "Fight Club",
+               "attachments" => json_encode($attachments)
+            ]
+         ]);
+
+         $result = curl_exec($ch);
+
+         if (!$result) {
+            // Add a space so we don't trigger ourselves
+            echo json_encode([
+               "text" => " " . implode("\n", $attachments)
+            ]);
+         }
+
+         self::$complete = true;
       }
+      else {
+         $attachments = [];
+         foreach ($result["data"] as $update) {
+            $attachments[] = $update->toString();
+         }
 
-      // Add a space so we don't trigger ourselves
-      echo json_encode([
-         "text" => " " . implode("\n", $attachments)
-      ]);
+         // Add a space so we don't trigger ourselves
+         echo json_encode([
+            "text" => " " . implode("\n", $attachments)
+         ]);
 
-      self::$complete = true;
+         self::$complete = true;
+      }
    }
 
    public static function error_handler($e) {
@@ -107,8 +184,14 @@ class SlackWrapper
          header('HTTP/1.1 200 OK');
          header('Content-Type: application/json');
 
+         $message = "There was an error in a FightYourFriends call!<br><br>";
+         $message .= "Error: " . $errstr . " at " . $errfile . ":" . $errline . "<br><br>";
+         $message .= "Other info:<br>";
+         $message .= "$_POST: " . json_encode($_POST) . "<br>";
+         $sent = mail("exyphnos@gmail.com", "ERROR in FightYourFriends!", $message);
+
          echo json_encode([
-            "text" => "ERROR: " . $errstr . " at " . $errfile . ":" . $errline
+            "text" => "ERROR: " . $errstr . " at " . $errfile . ":" . $errline . ". Email sent to FYF admin."
          ]);
       }
    }

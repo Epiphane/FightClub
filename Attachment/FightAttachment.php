@@ -10,7 +10,7 @@ namespace Fight\Attachment;
 
 class FightAttachment
 {
-   public function toAttachment($user) {
+   public function toAttachment($user = null) {
       return [];
    }
 

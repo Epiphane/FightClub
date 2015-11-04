@@ -109,10 +109,42 @@ class FightController
 
       FightActionController::registerAction($user, $fight->fight_id, $user->tag() . " forefeits to " . $opponent->tag() . "!");
 
-      if (!$fight     ->update(["status" => "lose"])) throw new Exception("Server error. Code: 3");
-      if (!$otherFight->update(["status" => "win" ])) throw new Exception("Server error. Code: 4");
+      return [
+         new FightMessage("good", "You gave up! " . $opponent->tag() . " wins!"),
+         self::registerVictory($opponent, $otherFight, $user, $fight)
+      ];
+   }
 
-      return new FightMessage("good", "You gave up! " . $opponent->tag() . " wins!");
+   public static function registerVictory($user, $fight, $opponent, $otherFight) {
+      // Update experience
+      // 100 + pow(x, 2.6)
+      $experience = $user->experience + $opponent->level * 10;
+      $level = $user->level;
+      $levelUps = 0;
+
+      $expNeeded = 40 + pow($level, 2.6);
+      while ($experience >= $expNeeded) {
+         $experience -= $expNeeded;
+         $level ++;
+         $levelUps ++;
+
+         $expNeeded = 40 + pow($level, 2.6);
+      }
+
+      $user->update([
+         "level" => $level,
+         "experience" => $experience
+      ]);
+
+      if (!$fight     ->update(["status" => "win" ])) throw new Exception("Server error. Code: 3");
+      if (!$otherFight->update(["status" => "lose"])) throw new Exception("Server error. Code: 4");
+   
+      if ($levelUps > 0) {
+         return new FightMessage("good", $user->tag() . " leveled up! ". $user->tag() . " is now level " . $level);
+      }
+      else {
+         return new FightMessage("good", $user->tag() . " now has " . $experience . " experience.");
+      }
    }
 
    public static $COMMANDS = [
@@ -266,7 +298,7 @@ class FightController
    public static function equip_($argc, $argv, $user, $fight, $params) {
       $itemName = implode(" ", array_slice($argv, 2));
       if ($argv[1] !== "weapon" && $argv[1] !== "armor") {
-         return new FightInfoMessage("Usage: `equip (weapon|armor) " . $itemName . "`");
+         return new FightInfoMessage("Usage: `equip (weapon|armor) " . $argv[1] . "`");
       }
 
       $item = FightItemController::getItem($user, $itemName);

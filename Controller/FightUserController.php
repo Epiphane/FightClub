@@ -54,7 +54,7 @@ class FightUserController
                "alignment" => "none",
                "physical" => 2,
                "elemental" => 0,
-               "defense" => 0
+               "defense" => 4
             ],
             "type" => "item"
          ]);
