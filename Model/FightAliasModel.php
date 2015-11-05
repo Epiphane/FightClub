@@ -19,8 +19,10 @@ class FightAliasModel extends \Fight\Model\Model
    ];
 
    public static $const_columns = [
-      "user_id", "team_id"
+      "slack_user_id", "team_id"
    ];
+
+   public static $pKey = ["slack_user_id", "team_id"];
 
    public $user_id;
    public $slack_user_id;

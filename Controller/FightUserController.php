@@ -8,6 +8,7 @@
 namespace Fight\Controller;
 
 use \Fight\Model\FightUserModel;
+use \Fight\Model\FightAliasModel;
 use \Fight\Model\FightItemModel;
 use \Fight\Controller\FightAppController;
 
@@ -32,11 +33,23 @@ class FightUserController
 
       if (!$alias) {
          // Attempt to find user and connect him
-         $email = FightCURLController::getUserInfo($team_id)["email"];
+         $email = FightAppController::getUserInfo($team_id, $user_id)["email"];
 
          $user = FightUserModel::findOneWhere([
             "email" => $email
          ]);
+
+         if (!$user) {
+            $user = FightUserModel::findOneWhere([
+               "team_id" => $team_id,
+               "name" => $user_id,
+            ]);
+
+            if ($user) {
+               // Assign email
+               $user->update([ "email" => $email ]);
+            }
+         }
 
          if (!$user) {
             // Create user
@@ -45,7 +58,8 @@ class FightUserController
                "email" => $email,
                "name" => $user_id,
                "level" => 1,
-               "experience" => 0
+               "experience" => 0,
+               "email" => $email
             ]);
 
             if (!$user->save()) return null;

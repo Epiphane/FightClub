@@ -41,7 +41,7 @@ class Model
 				if ($runs === 10) {
 					_log("10 collisions, aborting..");
 
-					throw new \Exception ("Primary Key collisions");
+					throw new \Exception ("Primary Key collisions. Class: " . get_called_class() . " => " . json_encode($model->getPrimaryKeyValues()));
 				}
 			}
 		}

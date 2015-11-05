@@ -65,8 +65,8 @@ class Main
     */
    public static function main($method, $params) {
       $user = FightUserController::findUser($params["team_id"], $params["user_id"]);
-      if ($params["user_name"] && $params["user_name"] !== $user->slack_name) {
-         $user->update(["slack_name" => $params["user_name"]]);
+      if ($params["user_name"] && $params["user_name"] !== $user->alias->slack_name) {
+         $user->alias->update(["slack_name" => $params["user_name"]]);
       }
 
       // Make sure the method is fine
