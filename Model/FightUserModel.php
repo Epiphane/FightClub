@@ -73,4 +73,8 @@ class FightUserModel extends \Fight\Model\Model
          return $this->name;
       }
    }
+
+   public static function findByEmail($email) {
+      return self::findOneWhere([ "email" => $email ]);
+   }
 }

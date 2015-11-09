@@ -39,10 +39,12 @@ if (!defined(NO_AUTOLOAD)) {
    require_once __DIR__ . "/autoload.php";
 }
 
+use Fight\Model\FightUserModel;
 use Fight\Controller\FightController;
 use Fight\Controller\FightUserController;
 use Fight\Attachment\FightErrorMessage;
 use Fight\Attachment\FightMessage;
+use Fight\Attachment\FightData;
 
 class Main
 {
@@ -98,6 +100,37 @@ class Main
       }
    }
 
+   public static function login($params) {
+      if (!$params["email"]) {
+         return self::packageData(400, "Email is required.", null);
+      }
+
+      $result = [];
+
+      $user = FightUserModel::findByEmail($params["email"]);
+      if (!$params["password"]) {
+         $result[] = new FightData(($user && $user->password) ? 1 : 0);
+      }
+      else if (!$user) {
+         return self::packageData(400, new FightErrorMessage("No user found for " . $params["email"]));
+      }
+      else {
+         $md5 = md5($params["password"]);
+
+         if ($md5 === $user->password) {
+            $result[] = new FightData($user->user_id);
+         }
+         else if (!$user->password) {
+            return self::packageData(400, new FightErrorMessage("No account set up for this email yet"));
+         }
+         else {
+            return self::packageData(400, new FightErrorMessage("No match found for this email and password"));
+         }
+      }
+
+      return self::packageData(200, $result);
+   }
+
    public static function packageData($status, $data, $user) {
       if (!is_array($data)) $data = [$data];
 
@@ -109,6 +142,8 @@ class Main
    }
 
    public static function isMethod($method) {
+      if ($method === "login") return true;
+
       return is_callable(["Fight\Controller\FightController", $method . "_"]);
    }
 }

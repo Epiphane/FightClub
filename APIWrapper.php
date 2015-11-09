@@ -10,6 +10,7 @@ namespace Fight;
 
 require_once __DIR__ . "/config.php";
 
+use Exception;
 use Fight\Main;
 use Fight\Model\FightAppModel;
 
@@ -29,6 +30,10 @@ class APIWrapper
    public static $complete = false;
 
    public static function respond() {
+      ini_set("display_errors", 0);
+      set_exception_handler(["Fight\APIWrapper", "error_handler"]);
+      register_shutdown_function(["Fight\APIWrapper", "fatal_handler"]);
+
       $url = $_SERVER["REQUEST_URI"];
       if (strrpos($url, "?"))
          $url = substr($url, 0, strrpos($url, "?"));
@@ -37,7 +42,10 @@ class APIWrapper
 
       $params = json_decode(file_get_contents("php://input"), TRUE) ?: [];
       $params = array_merge($_POST, $params);
-      $text = substr($params["text"], strlen($path) + 1);
+
+      if ($params["text"] === null && $path !== "login") throw new Exception("Text missing", 400);
+
+      $text = $params["text"];
 
       if ($path === "fight") {
          $command = explode(" ", $text)[0];
@@ -47,16 +55,24 @@ class APIWrapper
          }
       }
 
-      ini_set("display_errors", 0);
-      set_exception_handler(["Fight\APIWrapper", "error_handler"]);
-      register_shutdown_function(["Fight\APIWrapper", "fatal_handler"]);
-      $result = Main::main($path, [
-         "text" => $text,
-         "user_id" => $params["user_id"],
-         "user_name" => $params["user_name"],
-         "team_id" => $params["team_id"],
-         "channel_id" => $params["channel_id"]
-      ]);
+      if ($path === "login") {
+         if ($params["email"] === null) throw new Exception("Email is missing", 400);
+
+         $result = Main::login($params);
+      }
+      else {
+         if ($params["user_id"] === null) throw new Exception("You are not logged in!", 401);
+         if ($params["team_id"] === null) throw new Exception("Team ID missing", 400);
+         if ($params["channel_id"] === null) throw new Exception("Channel ID missing", 400);
+
+         $result = Main::main($path, [
+            "text" => $text,
+            "user_id" => $params["user_id"],
+            "user_name" => $params["user_name"],
+            "team_id" => $params["team_id"],
+            "channel_id" => $params["channel_id"]
+         ]);
+      }
 
       $status_header = 'HTTP/1.1 ' . $result["status"] . ' ' . getStatusCodeMessage($result["status"]);
       header($status_header);
@@ -74,11 +90,12 @@ class APIWrapper
    }
 
    public static function error_handler($e) {
-      header('HTTP/1.1 200 OK');
+      $status_header = 'HTTP/1.1 ' . $e->getCode() . ' ' . getStatusCodeMessage($e->getCode());
+      header($status_header);
       header('Content-Type: application/json');
 
       echo json_encode([
-         "text" => $e->getMessage()
+         "error" => $e->getMessage()
       ]);
 
       self::$complete = true;
