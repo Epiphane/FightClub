@@ -71,7 +71,7 @@ class SlackWrapper
       $app->save();
 
       echo "App added!<hr>" . 
-         "Please refer to <a href='http://thomassteinke.com/api/fight#add-outgoing>the previous page</a> to complete installation.";
+         "Please refer to <a href='http://thomassteinke.com/api/fight#add-outgoing'>the previous page</a> to complete installation.";
    }
 
    public static function respond() {

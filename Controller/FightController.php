@@ -42,7 +42,7 @@ class FightController
          $opponent->save();
       }
       else {
-         $opponent = FightUserController::findUserByTag($user->team_id, $argv[1]);
+         $opponent = FightUserController::findUserByTag($user->alias->team_id, $argv[1]);
          if (!$opponent) {
             return new FightMessage("danger", "Sorry, `" . $argv[1] . "` is not recognized as a name");
          }
@@ -58,13 +58,29 @@ class FightController
          return new FightMessage("danger", "Sorry, " . $opponent->tag() . " is already in a fight. Maybe take this somewhere else?");
       }
 
-      $INITIAL_HEALTH = 100;
+      $INITIAL_HEALTH_1 = 100;
+      $INITIAL_HEALTH_2 = 100;
+
+      if (!$user->weapon) {
+         $INITIAL_HEALTH_2 = 35;
+      }
+      if (!$opponent->weapon) {
+         $INITIAL_HEALTH_1 = 35;
+      }
+
+      $leveldiff = $opponent->level - $user->level;
+      if ($leveldiff >= 0) {
+         $INITIAL_HEALTH_1 += $leveldiff * 3;
+      }
+      else {
+         $INITIAL_HEALTH_2 += $leveldiff * 3;
+      }
 
       $fightParams = [
          "user_id" => $user->user_id,
          "channel_id" => $params["channel_id"],
          "status" => "progress",
-         "health" => $INITIAL_HEALTH
+         "health" => $INITIAL_HEALTH_1
       ];
 
       // Build fight 1
@@ -76,6 +92,7 @@ class FightController
       // Build opponent's fight
       $fightParams["fight_id"] = $fight1->fight_id;
       $fightParams["user_id"] = $opponent->user_id;
+      $fightParams["health"] = $INITIAL_HEALTH_2;
       $fight2 = FightModel::build($fightParams);
       if (!$fight2->save()) {
          throw new Exception("Server error. Code: 2");
@@ -163,7 +180,7 @@ class FightController
          if ($fight) {
             list($otherFight, $opponent) = self::getOpponent($fight);
 
-            return new FightMessage([
+            return new FightInfoMessage([
                " ",
                "Status update for " . $user->tag() . " (level " . $user->level . ")",
                " - Health: " . $fight->health,
@@ -174,7 +191,7 @@ class FightController
             ]);
          }
          else {
-            return new FightMessage([
+            return new FightInfoMessage([
                "Status update for " . $user->tag() . " (level " . $user->level . ")",
                "Type `status help` for more status options"
             ]);

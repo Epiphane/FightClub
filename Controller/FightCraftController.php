@@ -125,10 +125,14 @@ class FightCraftController
                if ($stats["origin"]) {
                   $str = "Choose a Virtue: ";
                   $virt = [];
+                  $cmd = [];
                   foreach (self::$virtues[$stats["origin"]] as $virtue) {
-                     if ($virtue) $virt[] = ucwords($virtue);
+                     if ($virtue) {
+                        $virt[] = ucwords($virtue);
+                        $cmd[] = "craft " . $virtue;
+                     }
                   }
-                  return new FightMessage("warning", $str . implode(" or ", $virt));
+                  return new FightMessage("warning", $str . implode(" or ", $virt) . " `(" .  . ")`");
                }
                else {
                   return self::chooseA("Origin", self::$origins[$stats["element"] . ":" . $stats["alignment"]]);
